@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - name: Checkout code
+    - name: Checkout code (full depth)
       uses: actions/checkout@v2
       with:
-       fetch-depth: 0
+        fetch-depth: 0  # Ensure full repo is pulled
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -25,7 +25,7 @@ jobs:
     - name: Login to Amazon ECR
       run: |
         aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-        | docker login --username AWS --password-stdin  911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa 
+        | docker login --username AWS --password-stdin 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa
 
     - name: Build, Tag and Push Docker image to ECR
       run: |
@@ -37,14 +37,14 @@ jobs:
       run: |
         echo "Current working directory:"
         pwd
-        echo "Contents:"
+        echo "Listing current directory:"
         ls -la
-        echo "K8s folder:"
-        ls -la k8s || echo "k8s folder not found"
+        echo "Checking for k8s folder and contents:"
+        ls -la ./k8s || echo "❌ 'k8s' folder not found"
 
-    - name: Print full repo structure (recursive)
+    - name: Print full repo structure recursively
       run: |
-        echo "Repo structure:"
+        echo "Full file tree:"
         find .
 
     - name: Update kubeconfig for EKS
@@ -54,8 +54,8 @@ jobs:
           --name dvwa-cluster
 
     - name: Deploy to Amazon EKS
-      working-directory: ${{ github.workspace }}
       run: |
-        kubectl apply -f k8s/deployment.yaml
-        kubectl apply -f k8s/service.yaml
+        echo "Deploying k8s manifests..."
+        kubectl apply -f ./k8s/deployment.yaml
+        kubectl apply -f ./k8s/service.yaml
 
