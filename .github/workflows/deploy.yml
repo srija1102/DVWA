@@ -38,6 +38,7 @@ jobs:
           --name dvwa-cluster
 
     - name: Deploy to Amazon EKS
+      working-directory: ${{ github.workspace }}
       run: |
         kubectl apply -f k8s/deployment.yaml
         kubectl apply -f k8s/service.yaml
