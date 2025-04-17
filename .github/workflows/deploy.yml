@@ -23,11 +23,11 @@ jobs:
     - name: Login to Amazon ECR
       run: |
         aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-        | docker login --username AWS --password-stdin ${{ 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa }}
+        | docker login --username AWS --password-stdin  911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa 
 
     - name: Build, Tag and Push Docker image to ECR
       run: |
-        IMAGE_URI=${{ secrets.ECR_REPO }}:latest
+        IMAGE_URI=911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
         docker build -t $IMAGE_URI .
         docker push $IMAGE_URI
 
