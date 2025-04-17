@@ -35,7 +35,7 @@ jobs:
       run: |
         aws eks update-kubeconfig \
           --region ${{ secrets.AWS_REGION }} \
-          --name ${{ secrets.EKS_CLUSTER_NAME }}
+          --name dvwa-cluster
 
     - name: Deploy to Amazon EKS
       run: |
