@@ -31,6 +31,20 @@ jobs:
         docker build -t $IMAGE_URI .
         docker push $IMAGE_URI
 
+    - name: Check working directory and list files
+      run: |
+        echo "Current working directory:"
+        pwd
+        echo "Contents:"
+        ls -la
+        echo "K8s folder:"
+        ls -la k8s || echo "k8s folder not found"
+
+    - name: Print full repo structure (recursive)
+      run: |
+        echo "Repo structure:"
+        find .
+
     - name: Update kubeconfig for EKS
       run: |
         aws eks update-kubeconfig \
