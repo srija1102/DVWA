@@ -94,5 +94,5 @@ jobs:
           echo "Deploying k8s manifests..."
           kubectl apply -f .DVWA/k8s/deployment.yaml
           kubectl apply -f .DVWA/k8s/service.yaml
-        kubectl apply -f k8s/hpa.yaml
-        kubectl apply -f k8s/network-policy.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl apply -f k8s/network-policy.yaml
