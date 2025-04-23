@@ -3,59 +3,96 @@ name: CI/CD to EKS for DVWA
 on:
   push:
     branches:
-      - main  # Trigger on push to main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
+      - name: Checkout code (full depth)
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: Checkout code (full depth)
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0  # Ensure full repo is pulled
+      - name: Set up Python for security tools
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      run: |
-        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-        | docker login --username AWS --password-stdin 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+          | docker login --username AWS --password-stdin 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa
 
-    - name: Build, Tag and Push Docker image to ECR
-      run: |
-        IMAGE_URI=911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
-        docker build -t $IMAGE_URI .
-        docker push $IMAGE_URI
+      - name: Build, Tag and Push Docker image to ECR
+        run: |
+          IMAGE_URI=911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
 
-    - name: Check working directory and list files
-      run: |
-        echo "Current working directory:"
-        pwd
-        echo "Listing current directory:"
-        ls -la
-        echo "Checking for k8s folder and contents:"
-        ls -la ./k8s || echo "❌ 'k8s' folder not found"
+      - name: Trivy Image Scan (Notify only)
+        continue-on-error: true
+        run: |
+          docker run --rm aquasec/trivy image 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
 
-    - name: Print full repo structure recursively
-      run: |
-        echo "Full file tree:"
-        find .
+      - name: Checkov IaC Scan (Notify only)
+        continue-on-error: true
+        run: |
+          pip install checkov
+          checkov -d .DVWA/k8s --quiet
 
-    - name: Update kubeconfig for EKS
-      run: |
-        aws eks update-kubeconfig \
-          --region ${{ secrets.AWS_REGION }} \
-          --name dvwa-cluster
+      - name: Kubeaudit Security Audit (Notify only)
+        continue-on-error: true
+        run: |
+          curl -sL https://github.com/Shopify/kubeaudit/releases/latest/download/kubeaudit_$(uname -s)_amd64.tar.gz | tar xz
+          chmod +x kubeaudit
+          ./kubeaudit all -f .DVWA/k8s/
 
-    - name: Deploy to Amazon EKS
-      run: |
-        echo "Deploying k8s manifests..."
-        kubectl apply -f .DVWA/k8s/deployment.yaml
-        kubectl apply -f .DVWA/k8s/service.yaml
+      - name: Run tests
+        run: |
+          echo "Running automated tests..."
+          docker run --rm 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest pytest tests || true
 
+      - name: GitHub Code Scanning (CodeQL)
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+      - name: Check working directory and list files
+        run: |
+          echo "Current working directory:"
+          pwd
+          echo "Listing current directory:"
+          ls -la
+          echo "Checking for k8s folder and contents:"
+          ls -la .DVWA/k8s || echo "❌ 'k8s' folder not found"
+
+      - name: Print full repo structure recursively
+        run: |
+          echo "Full file tree:"
+          find .
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name dvwa-cluster
+
+      - name: Deploy to Amazon EKS
+        run: |
+          echo "Deploying k8s manifests..."
+          kubectl apply -f .DVWA/k8s/deployment.yaml
+          kubectl apply -f .DVWA/k8s/service.yaml
+        kubectl apply -f k8s/hpa.yaml
+        kubectl apply -f k8s/network-policy.yaml

@@ -16,6 +16,32 @@ spec:
     spec:
       containers:
       - name: dvwa
-        image: 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest   # 👈 Replace this!
+        image: 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
         ports:
         - containerPort: 80
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 3000
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      imagePullSecrets:
+      - name: ecr-creds
