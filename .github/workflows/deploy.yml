@@ -92,7 +92,7 @@ jobs:
       - name: Deploy to Amazon EKS
         run: |
           echo "Deploying k8s manifests..."
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl apply -f k8s/hpa.yaml
-          kubectl apply -f k8s/network-policy.yaml
+          kubectl apply -f kube/deployment.yaml
+          kubectl apply -f kube/service.yaml
+          kubectl apply -f kube/hpa.yaml
+          kubectl apply -f kube/network-policy.yaml
