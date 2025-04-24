@@ -76,7 +76,7 @@ jobs:
           echo "Listing current directory:"
           ls -la
           echo "Checking for k8s folder and contents:"
-          ls -la .DVWA/k8s || echo "❌ 'k8s' folder not found"
+          ls -la .kube || echo "❌ 'kube' folder not found"
 
       - name: Print full repo structure recursively
         run: |
