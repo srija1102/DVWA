@@ -24,7 +24,9 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install checkov
-
+      - name: Install Ckeckov
+        run: |
+	  pip install checkov
       - name: Run Checkov (IaC Security Scanner)
         run: |
           mkdir -p logs
