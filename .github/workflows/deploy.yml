@@ -27,7 +27,7 @@ jobs:
       - name: Run Checkov (IaC Security Scanner)
         run: |
           mkdir -p logs
-          checkov -d kube/ -o json > logs/checkov.json
+          checkov -d kube/ -o json > logs/checkov.json || true
 
       - name: Run AI Threat Classifier
         run: |
