@@ -43,6 +43,16 @@ jobs:
         run: |
           python3 scripts/classify_threats.py
 
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan Docker image with Trivy
+        run: |
+          IMAGE_URI=911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
+          docker build -t $IMAGE_URI .
+          trivy image --format json --output logs/trivy_results.json $IMAGE_URI || true
+
 #      - name: Archive Security Scan Results
 #        uses: actions/upload-artifact@v2.2.4
 #        with:
@@ -75,4 +85,32 @@ jobs:
         run: |
           echo "Deploying k8s manifests..."
           kubectl apply -f kube/ --validate=false
+
+  notify-on-failure:
+    needs: deploy
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send email on failure
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: DVWA Pipeline
+          subject: "🚨 GitHub Actions: DVWA Deployment Failed"
+          body: |
+            One or more deployment steps have failed for the DVWA pipeline.
+
+            Logs include:
+            - Checkov (IaC)
+            - ZAP Scan (Web App)
+            - Trivy (Docker Image)
+            - AI Threat Classifier
+
+            View full logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
