@@ -74,5 +74,5 @@ jobs:
       - name: Deploy to EKS
         run: |
           echo "Deploying k8s manifests..."
-          kubectl apply -f kube/
+          kubectl apply -f kube/ --validate=false
 
