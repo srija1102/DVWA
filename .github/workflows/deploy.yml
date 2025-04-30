@@ -37,11 +37,11 @@ jobs:
         run: |
           python3 scripts/classify_threats.py
 
-      - name: Archive Security Scan Results
-        uses: actions/upload-artifact@v2.2.4
-        with:
-          name: security-logs
-          path: logs/
+#      - name: Archive Security Scan Results
+#        uses: actions/upload-artifact@v2.2.4
+#        with:
+#          name: security-logs
+#          path: logs/
 
       - name: Login to Amazon ECR
         run: |
