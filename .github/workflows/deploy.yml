@@ -86,13 +86,35 @@ jobs:
           echo "Deploying k8s manifests..."
           kubectl apply -f kube/ --validate=false
 
-  notify-on-failure:
+  notify:
     needs: deploy
-    if: failure()
+    if: always()
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send email on failure
+      - name: Determine outcome
+        id: outcome
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "status=SUCCESS ✅" >> $GITHUB_OUTPUT
+          else
+            echo "status=FAILURE ❌" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Summarize Threat Levels
+        id: threat_summary
+        run: |
+          if [ -f logs/classified_results.csv ]; then
+            HIGH=$(grep -c 'High' logs/classified_results.csv || true)
+            LOW=$(grep -c 'Low' logs/classified_results.csv || true)
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+          else
+            echo "high=0" >> $GITHUB_OUTPUT
+            echo "low=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send email notification with attachment
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -101,16 +123,26 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_RECIPIENT }}
-          from: DVWA Pipeline
-          subject: "🚨 GitHub Actions: DVWA Deployment Failed"
+          from: DVWA CI/CD Pipeline
+          subject: "GitHub Actions: DVWA Deployment ${{ steps.outcome.outputs.status }}"
           body: |
-            One or more deployment steps have failed for the DVWA pipeline.
+            Your GitHub Actions pipeline for DVWA has completed.
 
-            Logs include:
-            - Checkov (IaC)
-            - ZAP Scan (Web App)
-            - Trivy (Docker Image)
-            - AI Threat Classifier
+            ✅ Status: ${{ steps.outcome.outputs.status }}
 
-            View full logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🔍 Threat Classification Summary:
+            - High Severity: ${{ steps.threat_summary.outputs.high }}
+            - Low Severity: ${{ steps.threat_summary.outputs.low }}
+
+            📦 Logs include:
+            - Checkov (IaC scan)
+            - ZAP (Web app scan)
+            - Trivy (Image scan)
+            - AI threat classification
+
+            📎 Attached: classified_results.csv for full output
+
+            🔗 View full logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          attachments: |
+            logs/classified_results.csv
 
