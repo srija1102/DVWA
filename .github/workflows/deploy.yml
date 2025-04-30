@@ -34,11 +34,11 @@ jobs:
         run: |
           python3 scripts/classify_threats.py
 
-      - name: Archive Security Scan Results
-        uses: actions/upload-artifact@v3.1.2
-        with:
-          name: security-logs
-          path: logs/
+#      - name: Archive Security Scan Results
+#        uses: actions/upload-artifact@v3.1.2
+#        with:
+#          name: security-logs
+#          path: logs/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
