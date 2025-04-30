@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dvwa
+  labels:
+    app: dvwa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dvwa
+  template:
+    metadata:
+      labels:
+        app: dvwa
+    spec:
+      containers:
+        - name: dvwa
+          image: 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: DB_SERVER
+              value: mysql-service
+            - name: DB_DATABASE
+              value: dvwa
+            - name: DB_USER
+              value: dvwa
+            - name: DB_PASSWORD
+              value: dvwa
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /setup.php
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+
