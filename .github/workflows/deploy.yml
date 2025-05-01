@@ -51,7 +51,7 @@ jobs:
       - name: Classify Threats
         run: python3 scripts/classify_threats.py || echo "⚠️ Classification script failed"
 
-      - name: Debug: List logs folder
+      - name: Debug List logs folder
         run: ls -al logs || echo "⚠️ logs/ folder missing"
 
       - name: Archive Security Logs
@@ -98,7 +98,7 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_RECIPIENT }}
           from: DVWA CI/CD Pipeline <${{ secrets.MAIL_USERNAME }}>
-          subject: GitHub Actions: DVWA Deployment ${{ job.status }}
+          subject: GitHub Actions DVWA Deployment ${{ job.status }}
           body: |
             ✅ Status: ${{ job.status }}
 
