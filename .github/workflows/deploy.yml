@@ -24,7 +24,7 @@ jobs:
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          sudo mv trivy /usr/local/bin/
+          sudo mv ./bin/trivy /usr/local/bin/
 
       - name: Prepare logs directory
         run: mkdir -p logs
@@ -97,8 +97,8 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_RECIPIENT }}
-          from: DVWA CI/CD Pipeline <${{ secrets.MAIL_USERNAME }}>
-          subject: GitHub Actions DVWA Deployment ${{ job.status }}
+          from: "${{ secrets.MAIL_USERNAME }}"
+          subject: "GitHub Actions DVWA Deployment ${{ job.status }}"
           body: |
             ✅ Status: ${{ job.status }}
 
@@ -121,4 +121,3 @@ jobs:
             logs/classified_results.csv
             logs/zap_results.json
             logs/zap_report.html
-
