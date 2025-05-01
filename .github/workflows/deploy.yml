@@ -55,7 +55,7 @@ jobs:
         run: ls -al logs || echo "⚠️ logs/ folder missing"
 
       - name: Archive Security Logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-logs
           path: logs/
