@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
 
 def classify(log_file):
     if not os.path.exists(log_file):
@@ -13,7 +12,10 @@ def classify(log_file):
             print("⚠️ No 'severity' column found. Classification skipped.")
             return
 
-        df['threat_level'] = df['severity'].apply(lambda x: 'High' if x > 7 else 'Low')
+        # Normalize severity string and classify
+        df['threat_level'] = df['severity'].str.upper().apply(
+            lambda x: 'High' if x in ['HIGH', 'CRITICAL'] else 'Low'
+        )
         df.to_csv('logs/classified_results.csv', index=False)
         print(f"✅ Threat classification complete for {log_file}. Output: logs/classified_results.csv")
 
@@ -25,7 +27,8 @@ if __name__ == "__main__":
         classify('logs/zap_results.json')
     elif os.path.exists('logs/checkov.json'):
         classify('logs/checkov.json')
+    elif os.path.exists('logs/trivy_results.json'):
+        classify('logs/trivy_results.json')
     else:
         print("❌ No log files found. Cannot perform classification.")
-
 
