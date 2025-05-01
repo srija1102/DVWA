@@ -39,11 +39,14 @@ import pandas as pd
 import json
 
 def classify_severity(severity):
+    if not severity:
+        return 'Unknown'
     severity = severity.upper()
     if severity in ['HIGH', 'CRITICAL']:
         return 'High'
     else:
         return 'Low'
+
 
 def parse_zap(file_path):
     with open(file_path, 'r') as f:
