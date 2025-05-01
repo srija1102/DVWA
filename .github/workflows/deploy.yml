@@ -111,7 +111,10 @@ jobs:
             - Trivy (Image scan)
             - AI-based threat classification
 
-            📎 Attached: classified_results.csv, zap_results.json, zap_report.html
+            📎 Attached:
+            - classified_results.csv
+            - zap_results.json
+            - zap_report.html
 
             🔗 View full logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           attachments: |
