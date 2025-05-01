@@ -18,13 +18,19 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install Python dependencies
+        run: |
+          pip install pandas scikit-learn
+
       - name: Install Checkov
         run: pip install checkov
 
       - name: Install Trivy
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          sudo mv ./bin/trivy /usr/local/bin/
+          sudo apt-get update
+          sudo apt-get install wget -y
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.62.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.62.0_Linux-64bit.deb
 
       - name: Prepare logs directory
         run: mkdir -p logs
@@ -97,27 +103,23 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_RECIPIENT }}
-          from: "${{ secrets.MAIL_USERNAME }}"
-          subject: "GitHub Actions DVWA Deployment ${{ job.status }}"
+          from: DVWA CI/CD Pipeline <${{ secrets.MAIL_USERNAME }}>
+          subject: GitHub Actions DVWA Deployment ${{ job.status }}
           body: |
             ✅ Status: ${{ job.status }}
 
-            🔍 Threat Classification Summary:
-            (See attached classified_results.csv)
-
             📦 Logs included:
             - Checkov (IaC scan)
-            - ZAP (Web app scan)
             - Trivy (Image scan)
+            - ZAP (Web app scan)
             - AI-based threat classification
 
-            📎 Attached:
-            - classified_results.csv
-            - zap_results.json
-            - zap_report.html
+            🔗 View full logs:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            🔗 View full logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           attachments: |
-            logs/classified_results.csv
+            logs/checkov.json
+            logs/trivy_results.json
             logs/zap_results.json
             logs/zap_report.html
+            logs/classified_results.csv
