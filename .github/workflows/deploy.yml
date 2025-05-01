@@ -13,6 +13,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          sudo mv trivy /usr/local/bin/
+
+      - name: Prepare logs directory
+        run: mkdir -p logs
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -20,35 +36,29 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install Checkov
-        run: pip install checkov
+      - name: Run Checkov (IaC Security Scanner)
+        run: checkov -d kube/ -o json > logs/checkov.json || echo "⚠️ Checkov failed"
 
-      - name: Run Checkov (IaC scan)
-        run: |
-          mkdir -p logs
-          checkov -d kube/ -o json > logs/checkov.json || true
+      - name: Run Trivy (Container Image Scanner)
+        run: trivy image --format json --output logs/trivy_results.json 911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest || echo "⚠️ Trivy failed"
 
-      - name: Install Python dependencies
-        run: pip install pandas scikit-learn
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: 'http://${{ secrets.LOAD_BALANCER_URL }}'
+          cmd_options: '-J logs/zap_results.json -r logs/zap_report.html'
 
-      - name: Run AI Threat Classifier (initial)
-        run: python3 scripts/classify_threats.py || true
+      - name: Classify Threats
+        run: python3 scripts/classify_threats.py || echo "⚠️ Classification script failed"
 
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      - name: Debug: List logs folder
+        run: ls -al logs || echo "⚠️ logs/ folder missing"
 
-      - name: Scan Docker image with Trivy
-        run: |
-          IMAGE_URI=911167907462.dkr.ecr.us-east-1.amazonaws.com/dvwa:latest
-          docker build -t $IMAGE_URI .
-          trivy image --format json --output logs/trivy_results.json $IMAGE_URI || true
-
-#      - name: Archive Security Logs
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: security-logs
-#          path: logs/
+      - name: Archive Security Logs
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-logs
+          path: logs/
 
       - name: Login to Amazon ECR
         run: |
@@ -77,58 +87,8 @@ jobs:
           echo "Deploying k8s manifests..."
           kubectl apply -f kube/ --validate=false
 
-      - name: Wait for DVWA to boot
-        run: sleep 30
-
-      - name: Run DVWA setup
-        run: curl -s http://${{ secrets.LOAD_BALANCER_URL }}/setup.php
-
-      - name: Set DVWA security level to 'low'
-        run: |
-          curl -s -X POST http://${{ secrets.LOAD_BALANCER_URL }}/security.php \
-            -d 'security=low&seclev_submit=Submit'
-
-      - name: Run OWASP ZAP Full Scan
-        run: |
-          mkdir -p logs
-          docker run --rm -v ${{ github.workspace }}/logs:/zap/wrk/:rw \
-            ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py \
-            -t http://${{ secrets.LOAD_BALANCER_URL }} \
-            -J zap_results.json \
-            -r zap_report.html || true
-
-      - name: Classify Final Threats
-        run: python3 scripts/classify_threats.py || true
-
-  notify:
-    needs: deploy
-    if: always()
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Determine outcome
-        id: outcome
-        run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "status=SUCCESS ✅" >> $GITHUB_OUTPUT
-          else
-            echo "status=FAILURE ❌" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Summarize Threat Levels
-        id: threat_summary
-        run: |
-          if [ -f logs/classified_results.csv ]; then
-            HIGH=$(grep -c 'High' logs/classified_results.csv || true)
-            LOW=$(grep -c 'Low' logs/classified_results.csv || true)
-            echo "high=$HIGH" >> $GITHUB_OUTPUT
-            echo "low=$LOW" >> $GITHUB_OUTPUT
-          else
-            echo "high=0" >> $GITHUB_OUTPUT
-            echo "low=0" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Send email notification with attachments
+      - name: Send Notification Email
+        if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -137,24 +97,21 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_RECIPIENT }}
-          from: DVWA CI/CD Pipeline
-          subject: "GitHub Actions: DVWA Deployment ${{ steps.outcome.outputs.status }}"
+          from: DVWA CI/CD Pipeline <${{ secrets.MAIL_USERNAME }}>
+          subject: GitHub Actions: DVWA Deployment ${{ job.status }}
           body: |
-            Your GitHub Actions pipeline for DVWA has completed.
-
-            ✅ Status: ${{ steps.outcome.outputs.status }}
+            ✅ Status: ${{ job.status }}
 
             🔍 Threat Classification Summary:
-            - High Severity: ${{ steps.threat_summary.outputs.high }}
-            - Low Severity: ${{ steps.threat_summary.outputs.low }}
+            (See attached classified_results.csv)
 
-            📦 Logs include:
+            📦 Logs included:
             - Checkov (IaC scan)
             - ZAP (Web app scan)
             - Trivy (Image scan)
             - AI-based threat classification
 
-            📎 Attached: `classified_results.csv`, `zap_results.json`, and `zap_report.html`
+            📎 Attached: classified_results.csv, zap_results.json, zap_report.html
 
             🔗 View full logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           attachments: |
